@@ -1,0 +1,36 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+
+# Inicialize a SparkSession
+spark = SparkSession.builder.appName("NASA Mars Weather Data").getOrCreate()
+
+# Defina o endpoint da API com a chave DEMO_KEY
+api_key = "5u0ZmROFp5reqBAQVRWiZa9KMaw5E4YJxYqx0M0r"
+url = f"https://api.nasa.gov/insight_weather/?api_key=5u0ZmROFp5reqBAQVRWiZa9KMaw5E4YJxYqx0M0r&feedtype=json&ver=1.0"
+
+# Faça a requisição para a API
+import requests
+response = requests.get(url)
+data = response.json()
+
+# Filtrar para pegar apenas os dados de clima (sols)
+weather_data = {sol: data[sol] for sol in data if sol.isdigit()}
+
+# Transformar os dados em uma lista de dicionários, adicionando o sol como chave
+records = [{"sol": sol, **weather_data[sol]} for sol in weather_data]
+
+# Criar o DataFrame
+df = spark.createDataFrame(records)
+
+# Extrair e selecionar as colunas desejadas
+df = df.select(
+    col("sol"),  # sol (Martian day)
+    col("AT.av").alias("temperature"),  # Average temperature
+    col("AT.mn").alias("min_temp"),  # Minimum temperature
+    col("AT.mx").alias("max_temp"),  # Maximum temperature
+    col("Month_ordinal"),  # Ordinal month (Martian)
+    col("Northern_season")  # Northern season (Martian)
+)
+
+# Exibir o DataFrame resultante
+df.show(truncate=False)
